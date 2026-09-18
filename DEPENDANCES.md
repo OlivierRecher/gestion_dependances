@@ -103,6 +103,7 @@ désormais tenue par un test qui échoue si elle réapparaît ailleurs :
 | Singletons et état global | aucun `let` / `var` au niveau module dans `src/` |
 | Outils externes | aucun module `node:` hors de `interface/http/server.ts` |
 | Contexte d'exécution (horloge) | `Date.now()` n'existe que dans `system-clock.ts` |
+| Journalisation transverse | logger enveloppé par `neverThrows()`, flux de sortie et gardes de processus armés avant tout le reste |
 
 ```bash
 npm run test:arch

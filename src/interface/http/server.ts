@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
-import type { Logger } from '../../observability/logger.ts'
+import { neverThrows, type Logger } from '../../observability/logger.ts'
 import { PROBLEM_CONTENT_TYPE, type ApiHandler, type ApiRequest, type ApiResponse } from './api.ts'
 
 export type HttpServerOptions = {
@@ -42,6 +42,20 @@ const INTERNAL_ERROR: ApiResponse = {
   },
 }
 
+/**
+ * Execute une action dont l'echec ne doit jamais remonter.
+ *
+ * Utilise uniquement sur les chemins de derniere chance, la ou lever
+ * signifierait tuer le processus au lieu de degrader une seule requete.
+ */
+const failSafe = (action: () => void): void => {
+  try {
+    action()
+  } catch {
+    // Volontairement silencieux : c'est deja le chemin de recuperation.
+  }
+}
+
 const send = (message: IncomingMessage, response: ServerResponse, api: ApiResponse): void => {
   const payload = Buffer.from(JSON.stringify(api.body ?? null), 'utf8')
 
@@ -63,20 +77,40 @@ const send = (message: IncomingMessage, response: ServerResponse, api: ApiRespon
  * serveur ne demanderait de reecrire que lui.
  */
 export const startHttpServer = (options: HttpServerOptions): Promise<RunningServer> => {
+  // Le transport ne doit pas pouvoir etre tue par la journalisation, quel que
+  // soit le logger que l'appelant lui confie.
+  const logger = neverThrows(options.logger)
+
   const server = createServer((message, response) => {
     void (async () => {
       try {
         send(message, response, await options.handler(toApiRequest(message)))
       } catch (error: unknown) {
-        // Un endpoint qui leve ne doit jamais faire tomber le processus.
-        options.logger.log('error', 'request.unhandled', {
-          path: message.url,
-          error: error instanceof Error ? error.message : String(error),
+        // Le chemin de recuperation doit etre aussi solide que le chemin
+        // nominal : journaliser, puis repondre, puis abandonner la socket --
+        // chaque etape isolee, aucune ne pouvant emporter le processus.
+        failSafe(() =>
+          logger.log('error', 'request.unhandled', {
+            path: message.url,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        )
+        failSafe(() => {
+          if (!response.headersSent) send(message, response, INTERNAL_ERROR)
+          else response.end()
         })
-        if (!response.headersSent) send(message, response, INTERNAL_ERROR)
-        else response.end()
+        failSafe(() => {
+          if (!response.writableEnded) response.destroy()
+        })
       }
     })()
+  })
+
+  // Une erreur de socket apres le demarrage (EMFILE, ECONNRESET...) emet un
+  // evenement 'error' : sans ecouteur, Node le transforme en exception non
+  // rattrapee et le processus meurt.
+  server.on('error', (error) => {
+    logger.log('error', 'server.error', { error: error.message })
   })
 
   return new Promise((resolve, reject) => {
@@ -85,7 +119,7 @@ export const startHttpServer = (options: HttpServerOptions): Promise<RunningServ
       server.removeListener('error', reject)
       const address = server.address() as AddressInfo
 
-      options.logger.log('info', 'server.started', { port: address.port })
+      logger.log('info', 'server.started', { port: address.port })
 
       resolve({
         port: address.port,

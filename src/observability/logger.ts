@@ -27,3 +27,26 @@ export const createJsonLogger = (sink: LogSink, now: () => Date): Logger => ({
 
 /** Aucun bruit dans la sortie des tests. */
 export const silentLogger: Logger = { log: () => {} }
+
+/**
+ * Rend un logger incapable de faire tomber son appelant.
+ *
+ * La journalisation est la dependance la plus transverse d'un service : elle
+ * est appelee depuis partout, y compris depuis les chemins d'erreur. Si elle
+ * peut lever, elle devient le SPOF que le cours decrit -- une brique utilisee
+ * par 100 % des modules, capable de tout emporter. Un `stdout` ferme (EPIPE)
+ * ou un collecteur indisponible suffisent.
+ *
+ * On avale donc l'echec sans bruit : perdre une ligne de journal est toujours
+ * preferable a perdre le service. C'est le seul endroit du projet ou avaler
+ * une exception est la bonne decision.
+ */
+export const neverThrows = (logger: Logger): Logger => ({
+  log: (level, event, data) => {
+    try {
+      logger.log(level, event, data)
+    } catch {
+      // Rien a faire : par definition, on ne peut pas journaliser cet echec.
+    }
+  },
+})

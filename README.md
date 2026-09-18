@@ -25,7 +25,7 @@ npm start       # http://127.0.0.1:3000
 ```
 
 ```bash
-npm test             # 142 tests unitaires + bout en bout, sans réseau (~1 s)
+npm test             # 160 tests unitaires + bout en bout, sans réseau (~2 s)
 npm run typecheck    # tsc --noEmit
 npm run verify       # typecheck + tests
 npm run test:contract  # ⚠ sort sur le réseau : vérifie les vraies API
@@ -183,6 +183,25 @@ protégés.
 | Pannes répétées | circuit ouvert : le service en panne cesse d'être martelé |
 | Le service revient | circuit semi-ouvert, une sonde, puis fermeture automatique |
 | N'importe quelle panne | `/health` répond toujours, et l'autre service continue |
+| Le puits de journalisation tombe | l'API continue de servir : journaliser est accessoire |
+| Un endpoint lève | `500` sans fuite de détail, le serveur reste debout |
+
+#### La journalisation n'est pas un SPOF
+
+Le support cite « une librairie de logs utilisée par 100 % des modules » comme
+SPOF classique. Ici, trois protections empilées :
+
+- `neverThrows()` enveloppe le logger : une exception de journalisation ne
+  remonte jamais à l'appelant ;
+- `process.stdout.on('error')` absorbe les échecs **asynchrones** du flux —
+  un `EPIPE` ne lève pas, il émet un événement, qu'aucun `try/catch` ne peut
+  intercepter ;
+- `installCrashGuards()` pose le filet de dernier recours sur
+  `unhandledRejection` et `uncaughtException`, **avant** la première ligne
+  journalisée.
+
+`node src/main.ts | head -1` tuait le processus ; l'API continue désormais de
+répondre `200`.
 
 Les stratégies anti-SPOF listées dans le support sont toutes présentes :
 **isoler derrière une interface**, **circuit breaker** et **cache pour un mode
@@ -221,7 +240,7 @@ transitives, explicites et implicites, avec leur niveau de couplage — est dans
 
 ## Tests
 
-142 tests, aucun accès réseau, environ une seconde.
+160 tests, aucun accès réseau, environ deux secondes.
 
 | Suite | Objet |
 |---|---|
@@ -232,7 +251,9 @@ transitives, explicites et implicites, avec leur niveau de couplage — est dans
 | `tests/unit/interface/` | endpoints et routeur, sans socket |
 | `tests/unit/config/` | validation de la configuration |
 | `tests/unit/architecture.test.ts` | **règles d'architecture exécutables** |
+| `tests/unit/observability/` | journalisation défensive et gardes de processus |
 | `tests/e2e/` | vrai serveur, vrai routeur, vrais adaptateurs, faux amonts |
+| `tests/e2e/process-survival.test.ts` | le processus réel survit à la perte de son tuyau de logs |
 | `tests/contract/` | ⚠ réseau, hors `npm test` : les vraies API tiennent-elles leur contrat ? |
 
 Le code a été écrit en TDD : pour chaque module, les tests d'abord (rouge),
