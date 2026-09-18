@@ -16,7 +16,9 @@ describe('loadConfig', () => {
     assert.equal(isOk(result), true)
     if (!isOk(result)) return
     assert.equal(result.value.port, 3000)
+    assert.equal(result.value.geocoding.provider, 'nominatim')
     assert.equal(result.value.geocoding.baseUrl, 'https://nominatim.openstreetmap.org')
+    assert.equal(result.value.forecast.provider, 'open-meteo')
     assert.equal(result.value.forecast.baseUrl, 'https://api.open-meteo.com')
   })
 
@@ -30,10 +32,13 @@ describe('loadConfig', () => {
   it('surcharge chaque reglage depuis l environnement', () => {
     const result = loadConfig({
       PORT: '4000',
+      GEOCODING_PROVIDER: 'ban',
       GEOCODING_BASE_URL: 'https://geo.interne.test',
       GEOCODING_TIMEOUT_MS: '1500',
       GEOCODING_USER_AGENT: 'mon-agent/2.0',
+      FORECAST_PROVIDER: 'met-norway',
       FORECAST_BASE_URL: 'https://meteo.interne.test',
+      FORECAST_USER_AGENT: 'mon-agent-meteo/2.0',
       FORECAST_TIMEOUT_MS: '2500',
       CACHE_TTL_MS: '1000',
       CACHE_STALE_TTL_MS: '2000',
@@ -47,17 +52,43 @@ describe('loadConfig', () => {
     assert.deepEqual(result.value, {
       port: 4000,
       geocoding: {
+        provider: 'ban',
         baseUrl: 'https://geo.interne.test',
         userAgent: 'mon-agent/2.0',
         timeoutMs: 1500,
       },
       forecast: {
+        provider: 'met-norway',
         baseUrl: 'https://meteo.interne.test',
+        userAgent: 'mon-agent-meteo/2.0',
         timeoutMs: 2500,
       },
       cache: { ttlMs: 1000, staleTtlMs: 2000, maxEntries: 42 },
       breaker: { failureThreshold: 5, resetTimeoutMs: 30000 },
     })
+  })
+
+  it('bascule vers l url par defaut du fournisseur choisi quand aucune url n est fournie', () => {
+    const result = loadConfig({ GEOCODING_PROVIDER: 'ban', FORECAST_PROVIDER: 'met-norway' })
+
+    assert.equal(isOk(result), true)
+    if (!isOk(result)) return
+    assert.equal(result.value.geocoding.baseUrl, 'https://api-adresse.data.gouv.fr')
+    assert.equal(result.value.forecast.baseUrl, 'https://api.met.no')
+  })
+
+  it('refuse un fournisseur de geocodage inconnu', () => {
+    const issues = issuesOf({ GEOCODING_PROVIDER: 'google' })
+
+    assert.equal(issues.length, 1)
+    assert.match(issues[0] ?? '', /^GEOCODING_PROVIDER/)
+  })
+
+  it('refuse un fournisseur de previsions inconnu', () => {
+    const issues = issuesOf({ FORECAST_PROVIDER: 'meteo-france' })
+
+    assert.equal(issues.length, 1)
+    assert.match(issues[0] ?? '', /^FORECAST_PROVIDER/)
   })
 
   it('refuse un port qui n est pas un entier', () => {

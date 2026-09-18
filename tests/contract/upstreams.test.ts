@@ -1,10 +1,12 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
+import { createMetNorwayForecaster } from '../../src/infrastructure/forecast/met-norway-forecaster.ts'
 import { createOpenMeteoForecaster } from '../../src/infrastructure/forecast/open-meteo-forecaster.ts'
+import { createBanGeocoder } from '../../src/infrastructure/geocoding/ban-geocoder.ts'
 import { createNominatimGeocoder } from '../../src/infrastructure/geocoding/nominatim-geocoder.ts'
 import { createFetchHttpClient } from '../../src/infrastructure/http/fetch-http-client.ts'
-import { isOk } from '../../src/domain/result.ts'
+import { isErr, isOk } from '../../src/domain/result.ts'
 import { anAddress } from '../support/fixtures.ts'
 
 /**
@@ -61,5 +63,39 @@ describe('contrat des services externes', { skip: SKIP }, () => {
     assert.ok(result.value.samples.length > 0, 'serie horaire vide')
     assert.ok(result.value.samples.every((sample) => Number.isFinite(sample.shortwaveRadiation)))
     assert.ok(result.value.timezone.length > 0)
+  })
+
+  it('la BAN renvoie encore un lieu exploitable', async () => {
+    const geocoder = createBanGeocoder({
+      http,
+      baseUrl: 'https://api-adresse.data.gouv.fr',
+      timeoutMs: 10_000,
+    })
+
+    const result = await geocoder.locate(anAddress('Ales, Gard, France'))
+
+    assert.equal(isOk(result), true, 'le contrat de geocodage a change, ou le service est indisponible')
+    if (!isOk(result)) return
+    assert.ok(result.value.label.length > 0, 'libelle absent')
+    assert.ok(Math.abs(result.value.coordinates.latitude - 44.12) < 1, `latitude inattendue : ${result.value.coordinates.latitude}`)
+    assert.ok(Math.abs(result.value.coordinates.longitude - 4.08) < 1, `longitude inattendue : ${result.value.coordinates.longitude}`)
+  })
+
+  it('MET Norway confirme toujours l absence de rayonnement solaire dans Locationforecast', async () => {
+    const forecaster = createMetNorwayForecaster({
+      http,
+      baseUrl: 'https://api.met.no',
+      userAgent: 'api-meteo/1.0 (TP gestion des dependances)',
+      timeoutMs: 10_000,
+    })
+
+    const result = await forecaster.forecastAt({ latitude: 44.1281, longitude: 4.0817 })
+
+    // Documente une inadequation de contrat volontaire, pas une panne : voir
+    // met-norway-forecaster.ts. Si ce test se met a echouer parce que le
+    // service renvoie desormais du rayonnement solaire, tant mieux — il
+    // faudra alors reecrire l'adaptateur pour l'exploiter.
+    assert.equal(isErr(result), true, 'MET Norway publie desormais un rayonnement solaire : adapter le code')
+    if (isErr(result)) assert.equal((result.error as { reason?: string }).reason, 'invalid-response')
   })
 })

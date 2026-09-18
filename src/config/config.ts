@@ -1,14 +1,21 @@
 import { err, ok, type Result } from '../domain/result.ts'
 
+export type GeocodingProvider = 'nominatim' | 'ban'
+export type ForecastProvider = 'open-meteo' | 'met-norway'
+
 export type Config = {
   readonly port: number
   readonly geocoding: {
+    readonly provider: GeocodingProvider
     readonly baseUrl: string
     readonly userAgent: string
     readonly timeoutMs: number
   }
   readonly forecast: {
+    readonly provider: ForecastProvider
     readonly baseUrl: string
+    /** MET Norway l'exige ; Open-Meteo l'ignore sans en souffrir. */
+    readonly userAgent: string
     readonly timeoutMs: number
   }
   readonly cache: {
@@ -31,10 +38,13 @@ export type Environment = Readonly<Record<string, string | undefined>>
 
 const DEFAULTS = {
   PORT: '3000',
+  GEOCODING_PROVIDER: 'nominatim',
   GEOCODING_BASE_URL: 'https://nominatim.openstreetmap.org',
   GEOCODING_USER_AGENT: 'api-meteo/1.0 (TP gestion des dependances)',
   GEOCODING_TIMEOUT_MS: '3000',
+  FORECAST_PROVIDER: 'open-meteo',
   FORECAST_BASE_URL: 'https://api.open-meteo.com',
+  FORECAST_USER_AGENT: 'api-meteo/1.0 (TP gestion des dependances)',
   FORECAST_TIMEOUT_MS: '3000',
   CACHE_TTL_MS: '300000',
   CACHE_STALE_TTL_MS: '3600000',
@@ -46,10 +56,12 @@ const DEFAULTS = {
 type Key = keyof typeof DEFAULTS
 
 /** Un reglage vide ou blanc vaut absent : un `.env` a moitie rempli ne doit pas tout casser. */
-const rawValue = (env: Environment, key: Key): string => {
+const rawValueOr = (env: Environment, key: Key, fallback: string): string => {
   const value = env[key]?.trim()
-  return value === undefined || value === '' ? DEFAULTS[key] : value
+  return value === undefined || value === '' ? fallback : value
 }
+
+const rawValue = (env: Environment, key: Key): string => rawValueOr(env, key, DEFAULTS[key])
 
 /** Collecte toutes les erreurs au lieu de s'arreter a la premiere. */
 const createCollector = () => {
@@ -71,44 +83,69 @@ const createCollector = () => {
     return parsed
   }
 
-  const httpUrl = (env: Environment, key: Key): string => {
-    const raw = rawValue(env, key)
+  /** `fallback` : la base par defaut depend du fournisseur choisi, pas seulement de la cle. */
+  const httpUrl = (env: Environment, key: Key, fallback: string = DEFAULTS[key]): string => {
+    const raw = rawValueOr(env, key, fallback)
 
     let parsed: URL
     try {
       parsed = new URL(raw)
     } catch {
       issues.push(`${key}: url absolue attendue, recu "${raw}"`)
-      return DEFAULTS[key]
+      return fallback
     }
 
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       issues.push(`${key}: schema http ou https attendu, recu "${parsed.protocol}"`)
-      return DEFAULTS[key]
+      return fallback
     }
 
     return raw
   }
 
-  return { issues, integer, httpUrl, text: rawValue }
+  const oneOf = <T extends string>(env: Environment, key: Key, allowed: readonly T[]): T => {
+    const raw = rawValue(env, key)
+    if ((allowed as readonly string[]).includes(raw)) return raw as T
+
+    issues.push(`${key}: attendu parmi ${allowed.join(', ')}, recu "${raw}"`)
+    return DEFAULTS[key] as T
+  }
+
+  return { issues, integer, httpUrl, oneOf, text: rawValue }
 }
 
 const MAX_TIMEOUT_MS = 60_000
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000
 
+const GEOCODING_BASE_URL_DEFAULTS: Readonly<Record<GeocodingProvider, string>> = {
+  nominatim: DEFAULTS.GEOCODING_BASE_URL,
+  ban: 'https://api-adresse.data.gouv.fr',
+}
+
+const FORECAST_BASE_URL_DEFAULTS: Readonly<Record<ForecastProvider, string>> = {
+  'open-meteo': DEFAULTS.FORECAST_BASE_URL,
+  'met-norway': 'https://api.met.no',
+}
+
 /** Lit la configuration depuis un environnement fourni, jamais depuis `process.env`. */
 export const loadConfig = (env: Environment): Result<Config, ConfigError> => {
   const collect = createCollector()
 
+  const geocodingProvider = collect.oneOf(env, 'GEOCODING_PROVIDER', ['nominatim', 'ban'] as const)
+  const forecastProvider = collect.oneOf(env, 'FORECAST_PROVIDER', ['open-meteo', 'met-norway'] as const)
+
   const config: Config = {
     port: collect.integer(env, 'PORT', 1, 65_535),
     geocoding: {
-      baseUrl: collect.httpUrl(env, 'GEOCODING_BASE_URL'),
+      provider: geocodingProvider,
+      baseUrl: collect.httpUrl(env, 'GEOCODING_BASE_URL', GEOCODING_BASE_URL_DEFAULTS[geocodingProvider]),
       userAgent: collect.text(env, 'GEOCODING_USER_AGENT'),
       timeoutMs: collect.integer(env, 'GEOCODING_TIMEOUT_MS', 1, MAX_TIMEOUT_MS),
     },
     forecast: {
-      baseUrl: collect.httpUrl(env, 'FORECAST_BASE_URL'),
+      provider: forecastProvider,
+      baseUrl: collect.httpUrl(env, 'FORECAST_BASE_URL', FORECAST_BASE_URL_DEFAULTS[forecastProvider]),
+      userAgent: collect.text(env, 'FORECAST_USER_AGENT'),
       timeoutMs: collect.integer(env, 'FORECAST_TIMEOUT_MS', 1, MAX_TIMEOUT_MS),
     },
     cache: {
