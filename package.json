@@ -1,0 +1,28 @@
+{
+  "name": "api-meteo",
+  "version": "1.0.0",
+  "description": "API meteo par adresse postale - TP1 gestion des dependances",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"tests/unit/**/*.test.ts\" \"tests/e2e/**/*.test.ts\"",
+    "test:unit": "node --test \"tests/unit/**/*.test.ts\"",
+    "test:e2e": "node --test \"tests/e2e/**/*.test.ts\"",
+    "test:contract": "CONTRACT_TESTS=1 node --test \"tests/contract/**/*.test.ts\"",
+    "test:watch": "node --test --watch \"tests/unit/**/*.test.ts\" \"tests/e2e/**/*.test.ts\"",
+    "verify": "npm run typecheck && npm test",
+    "deps:audit": "npm audit --audit-level=low",
+    "deps:tree": "npm ls --all",
+    "deps:outdated": "npm outdated || true",
+    "test:arch": "node --test \"tests/unit/architecture.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "26.6.1",
+    "typescript": "7.0.2"
+  }
+}
