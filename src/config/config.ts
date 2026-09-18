@@ -51,10 +51,7 @@ const rawValue = (env: Environment, key: Key): string => {
   return value === undefined || value === '' ? DEFAULTS[key] : value
 }
 
-/**
- * Collecte les erreurs au lieu de s'arreter a la premiere : corriger une
- * configuration a coups de redemarrages successifs est une perte de temps.
- */
+/** Collecte toutes les erreurs au lieu de s'arreter a la premiere. */
 const createCollector = () => {
   const issues: string[] = []
 
@@ -99,15 +96,7 @@ const createCollector = () => {
 const MAX_TIMEOUT_MS = 60_000
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000
 
-/**
- * Lit la configuration depuis un environnement *fourni*, jamais depuis
- * `process.env`.
- *
- * Les variables d'environnement sont la dependance cachee par excellence :
- * invisibles dans le code, non typees, et impossibles a faire varier en test
- * sans polluer le processus. En passant l'environnement en parametre, on la
- * rend explicite, validee, et testable a l'unite.
- */
+/** Lit la configuration depuis un environnement fourni, jamais depuis `process.env`. */
 export const loadConfig = (env: Environment): Result<Config, ConfigError> => {
   const collect = createCollector()
 

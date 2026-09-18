@@ -1,10 +1,7 @@
 import { err, ok } from '../../domain/result.ts'
 import type { HttpClient } from './http-client.ts'
 
-/**
- * Signature minimale de `fetch` dont nous avons besoin. La declarer nous evite
- * de dependre du type global complet, et permet de l'injecter en test.
- */
+/** Signature minimale de `fetch`, pour pouvoir l'injecter en test. */
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
 
 export type FetchHttpClientDeps = {
@@ -17,14 +14,7 @@ const isAbort = (error: unknown): boolean =>
 const describe = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-/**
- * Seul fichier du projet qui touche `fetch`.
- *
- * `fetch` est un global : une dependance implicite, invisible dans le
- * package.json et impossible a remplacer en test. On l'injecte, ce qui la rend
- * explicite -- et permet de tester tous les modes de panne sans reseau.
- * Changer de client HTTP se limite a reecrire ce fichier.
- */
+/** Seul fichier du projet qui touche `fetch`, injecte plutot que lu depuis le global. */
 export const createFetchHttpClient = (deps: FetchHttpClientDeps): HttpClient => ({
   get: async (request) => {
     try {

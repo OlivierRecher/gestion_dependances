@@ -29,13 +29,7 @@ export type GetWeatherForAddressDeps = {
 /** Une donnee perimee reste exploitable, mais le rapport doit le signaler. */
 const isDegraded = (...freshness: readonly Freshness[]): boolean => freshness.includes('stale')
 
-/**
- * Cas d'usage : adresse postale -> previsions.
- *
- * Il ne connait que deux interfaces et ne fait aucun appel reseau, aucune
- * lecture d'environnement, aucun acces a l'horloge. C'est ce qui le rend
- * testable en memoire, sans fake lourd ni serveur.
- */
+/** Cas d'usage : adresse -> previsions. Ne connait que les deux ports injectes. */
 export const createGetWeatherForAddress = (
   deps: GetWeatherForAddressDeps,
 ): GetWeatherForAddress => async (address) => {

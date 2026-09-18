@@ -18,11 +18,7 @@ const DEPENDENCY_LABELS: Readonly<Record<DependencyFailure['dependency'], string
   forecast: 'Le service de previsions',
 }
 
-/**
- * Representation publique d'un lieu. Volontairement distincte du type
- * `Place` du domaine : le contrat expose aux clients ne doit pas bouger a
- * chaque refactorisation interne.
- */
+/** DTO public, distinct de `Place` : le contrat expose ne doit pas bouger avec le domaine. */
 const toLocationDto = (place: Place) => ({
   label: place.label,
   latitude: place.coordinates.latitude,
@@ -45,10 +41,7 @@ const toReportDto = (report: WeatherReport) => ({
   },
 })
 
-/**
- * Une reponse degradee reste utile, mais ne doit pas etre rangee dans un cache
- * partage : elle serait rediffusee bien apres le retour a la normale.
- */
+/** Une reponse degradee reste utile mais ne doit pas finir dans un cache partage. */
 const degradationHeaders = (report: WeatherReport): Readonly<Record<string, string>> =>
   report.degraded
     ? { Warning: '110 - "Response is stale"', 'Cache-Control': 'no-store' }
@@ -102,13 +95,7 @@ const geocodingUnavailable = (failure: DependencyFailure): ApiResponse =>
     },
   })
 
-/**
- * Endpoint `GET /weather?address=...`.
- *
- * Il ne depend que du cas d'usage, injecte. Il ignore totalement l'existence
- * de Nominatim, d'Open-Meteo, du cache et du circuit breaker : sa seule
- * responsabilite est de traduire un resultat metier en reponse HTTP.
- */
+/** Endpoint `GET /weather?address=...` : ne depend que du cas d'usage injecte. */
 export const createWeatherEndpoint = (getWeather: GetWeatherForAddress): ApiHandler =>
   async (request) => {
     const address = createAddress(request.query['address'] ?? '')

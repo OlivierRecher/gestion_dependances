@@ -1,6 +1,6 @@
 import { createCoordinates } from '../../domain/coordinates.ts'
 import type { Coordinates, Forecast, RadiationSample } from '../../domain/model.ts'
-import type { Forecaster } from '../../domain/ports.ts'
+import type { ForecastService } from '../../domain/ports.ts'
 import { err, ok } from '../../domain/result.ts'
 import { fromHttpFailure, fromStatus, invalidResponse } from '../http/failure-mapping.ts'
 import type { HttpClient } from '../http/http-client.ts'
@@ -16,12 +16,7 @@ const DEPENDENCY = 'forecast' as const
 const VARIABLE = 'shortwave_radiation'
 const DEFAULT_TIMEZONE = 'GMT'
 
-/**
- * Recompose les series paralleles d'Open-Meteo (`time[]` et
- * `shortwave_radiation[]`) en points de mesure. Les trous (`null`) sont
- * ecartes plutot que propages en `NaN` : mieux vaut une serie plus courte
- * qu'une valeur fausse.
- */
+/** Recompose les series paralleles time[]/shortwave_radiation[] ; les trous (`null`) sont ecartes. */
 const toSamples = (times: readonly string[], values: readonly (number | null)[]): RadiationSample[] => {
   const samples: RadiationSample[] = []
 
@@ -59,15 +54,9 @@ const toForecast = (payload: unknown): Forecast | undefined => {
   }
 }
 
-/**
- * Adaptateur Open-Meteo : couche anti-corruption.
- *
- * Symetrique de l'adaptateur de geocodage, et tout aussi ignorant du reste du
- * systeme. Il ne sait pas qu'un cache existe, ni qu'un circuit breaker le
- * protege : ces politiques lui sont appliquees depuis la racine de composition.
- */
-export const createOpenMeteoForecaster = (options: OpenMeteoForecasterOptions): Forecaster =>
-  async (coordinates: Coordinates) => {
+/** Adaptateur Open-Meteo : symetrique du geocodeur, ignore cache et circuit breaker. */
+export const createOpenMeteoForecaster = (options: OpenMeteoForecasterOptions): ForecastService => ({
+  async forecastAt(coordinates: Coordinates) {
     const url = new URL('/v1/forecast', options.baseUrl)
     url.searchParams.set('latitude', String(coordinates.latitude))
     url.searchParams.set('longitude', String(coordinates.longitude))
@@ -87,4 +76,5 @@ export const createOpenMeteoForecaster = (options: OpenMeteoForecasterOptions): 
     if (forecast === undefined) return err(invalidResponse(DEPENDENCY, 'previsions inexploitables'))
 
     return ok(forecast)
-  }
+  },
+})

@@ -1,10 +1,6 @@
 import { err, ok, type Result } from './result.ts'
 
-/**
- * Type marque : une `Address` ne peut pas etre fabriquee depuis une `string`
- * quelconque, il faut passer par `createAddress`. La validation est donc
- * impossible a oublier, et le compilateur le garantit.
- */
+/** Type marque : une Address ne s'obtient que via createAddress, donc toujours validee. */
 export type Address = string & { readonly __brand: 'Address' }
 
 export type InvalidAddress = {

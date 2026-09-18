@@ -18,14 +18,7 @@ export interface CircuitBreaker {
   recordFailure(): void
 }
 
-/**
- * Circuit breaker : empeche de marteler un service deja tombe.
- *
- * C'est une machine a etats pure -- pas de timer, pas de `setTimeout`, pas
- * d'appel reseau. Tout le temps passe par `ClockPort`, ce qui la rend testable
- * a l'unite en quelques microsecondes, et reutilisable pour n'importe quelle
- * dependance.
- */
+/** Circuit breaker : machine a etats pure, sans timer ni appel reseau, tout le temps passe par `ClockPort`. */
 export const createCircuitBreaker = (options: CircuitBreakerOptions): CircuitBreaker => {
   let consecutiveFailures = 0
   let openedAt: number | null = null

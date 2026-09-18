@@ -18,15 +18,7 @@ export type ResilienceOptions<A, T, E> = {
   readonly circuitOpenError: () => E
 }
 
-/**
- * Enveloppe un appel sortant de timeouts logiques : cache frais, circuit
- * breaker, et repli sur donnee perimee.
- *
- * Generique a dessein : le decorateur ne sait rien de la meteo ni du geocodage.
- * On l'applique aux deux dependances externes depuis la racine de composition,
- * et aucun des deux adaptateurs n'a besoin d'etre modifie -- c'est la meme
- * politique de resilience, ecrite et testee une seule fois.
- */
+/** Enveloppe un appel sortant de cache, circuit breaker et repli sur donnee perimee, sans rien savoir du metier. */
 export const withResilience = <A, T, E>(
   upstream: (arg: A) => Promise<Result<T, E>>,
   options: ResilienceOptions<A, T, E>,

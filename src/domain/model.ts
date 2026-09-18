@@ -2,16 +2,7 @@ import type { Coordinates } from './coordinates.ts'
 
 export type { Coordinates } from './coordinates.ts'
 
-/**
- * Fraicheur d'une donnee obtenue aupres d'une dependance externe.
- * - `live`   : reponse directe du service
- * - `cached` : cache encore valide, le service n'a pas ete sollicite
- * - `stale`  : cache expire servi parce que le service est tombe (mode degrade)
- *
- * Cette information fait partie du contrat des ports : le metier doit pouvoir
- * distinguer une reponse fraiche d'un secours, sans savoir *comment* le cache
- * est implemente.
- */
+/** live: reponse directe, cached: servie depuis le cache, stale: cache perime en mode degrade. */
 export type Freshness = 'live' | 'cached' | 'stale'
 
 /** Une donnee accompagnee de sa provenance. */

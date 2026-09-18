@@ -24,15 +24,9 @@ export interface TimedCache<T> {
 }
 
 /**
- * Cache TTL avec conservation des donnees perimees.
- *
- * L'interet n'est pas la performance mais la disponibilite : quand un service
- * externe tombe, une donnee perimee vaut mieux qu'une erreur. La distinction
- * `cached` / `stale` remonte jusqu'a la reponse HTTP, ou elle devient le
- * drapeau `degraded`.
- *
- * `Map` conserve l'ordre d'insertion : reinserer une cle lue suffit a obtenir
- * une eviction LRU sans structure de donnees supplementaire.
+ * Cache TTL qui conserve les donnees perimees : une reponse perimee vaut
+ * mieux qu'une erreur. `Map` conserve l'ordre d'insertion, donc reinserer une
+ * cle lue suffit pour une eviction LRU.
  */
 export const createTimedCache = <T>(options: TimedCacheOptions): TimedCache<T> => {
   const entries = new Map<string, { value: T; storedAt: number }>()

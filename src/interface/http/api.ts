@@ -1,11 +1,4 @@
-/**
- * Contrat interne entre le transport HTTP et les endpoints.
- *
- * Les endpoints sont des fonctions pures de `ApiRequest` vers `ApiResponse` :
- * ni socket, ni `IncomingMessage`, ni `ServerResponse`. On peut donc tester
- * tout le comportement HTTP -- codes, en-tetes, corps -- sans ouvrir de port,
- * et remplacer `node:http` par autre chose sans toucher a un seul endpoint.
- */
+/** Contrat entre le transport et les endpoints : ces derniers restent de simples fonctions pures. */
 export type ApiRequest = {
   readonly method: string
   readonly path: string

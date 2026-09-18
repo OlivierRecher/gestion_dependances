@@ -1,11 +1,4 @@
-/**
- * Result explicite : une operation qui peut echouer renvoie sa panne comme une
- * valeur, pas comme une exception.
- *
- * Pourquoi : une exception traverse toutes les couches et court-circuite le
- * code appelant. Un `Result` force chaque appelant a decider quoi faire quand
- * une dependance externe tombe -- c'est ce qui rend le mode degrade possible.
- */
+/** Result explicite : une panne est une valeur renvoyee, jamais une exception. */
 export type Ok<T> = { readonly ok: true; readonly value: T }
 export type Err<E> = { readonly ok: false; readonly error: E }
 export type Result<T, E> = Ok<T> | Err<E>

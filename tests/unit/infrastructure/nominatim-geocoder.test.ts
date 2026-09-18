@@ -19,20 +19,20 @@ const NOMINATIM_PAYLOAD = JSON.stringify([
 
 const build = (answer: Result<HttpResponse, HttpFailure>) => {
   const http = fakeHttp(answer)
-  const geocode = createNominatimGeocoder({
+  const geocoder = createNominatimGeocoder({
     http: http.client,
     baseUrl: 'https://nominatim.exemple.test',
     userAgent: 'api-meteo/1.0 (tp@exemple.test)',
     timeoutMs: 2_500,
   })
-  return { http, geocode }
+  return { http, geocoder }
 }
 
 describe('nominatimGeocoder', () => {
   it('traduit la reponse du fournisseur en lieu du domaine', async () => {
-    const { geocode } = build(httpOk(NOMINATIM_PAYLOAD))
+    const { geocoder } = build(httpOk(NOMINATIM_PAYLOAD))
 
-    const result = await geocode(anAddress('Ales'))
+    const result = await geocoder.locate(anAddress('Ales'))
 
     assert.deepEqual(result, ok({
       label: 'Ales, Gard, Occitanie, France',
@@ -41,9 +41,9 @@ describe('nominatimGeocoder', () => {
   })
 
   it('construit l url de recherche attendue', async () => {
-    const { http, geocode } = build(httpOk(NOMINATIM_PAYLOAD))
+    const { http, geocoder } = build(httpOk(NOMINATIM_PAYLOAD))
 
-    await geocode(anAddress('Ales'))
+    await geocoder.locate(anAddress('Ales'))
     const url = http.lastUrl()
 
     assert.equal(url.origin, 'https://nominatim.exemple.test')
@@ -54,51 +54,51 @@ describe('nominatimGeocoder', () => {
   })
 
   it('encode les adresses contenant des caracteres speciaux', async () => {
-    const { http, geocode } = build(httpOk(NOMINATIM_PAYLOAD))
+    const { http, geocoder } = build(httpOk(NOMINATIM_PAYLOAD))
 
-    await geocode(anAddress('Alès & Cie, 30100'))
+    await geocoder.locate(anAddress('Alès & Cie, 30100'))
 
     assert.equal(http.lastUrl().searchParams.get('q'), 'Alès & Cie, 30100')
   })
 
   it('identifie l appelant comme l exige la politique d usage de Nominatim', async () => {
-    const { http, geocode } = build(httpOk(NOMINATIM_PAYLOAD))
+    const { http, geocoder } = build(httpOk(NOMINATIM_PAYLOAD))
 
-    await geocode(anAddress('Ales'))
+    await geocoder.locate(anAddress('Ales'))
 
     assert.equal(http.requests[0]?.headers?.['User-Agent'], 'api-meteo/1.0 (tp@exemple.test)')
   })
 
   it('applique le delai maximum configure', async () => {
-    const { http, geocode } = build(httpOk(NOMINATIM_PAYLOAD))
+    const { http, geocoder } = build(httpOk(NOMINATIM_PAYLOAD))
 
-    await geocode(anAddress('Ales'))
+    await geocoder.locate(anAddress('Ales'))
 
     assert.equal(http.requests[0]?.timeoutMs, 2_500)
   })
 
   it('signale un lieu introuvable sur un resultat vide', async () => {
-    const { geocode } = build(httpOk('[]'))
+    const { geocoder } = build(httpOk('[]'))
 
-    const result = await geocode(anAddress('Atlantide'))
+    const result = await geocoder.locate(anAddress('Atlantide'))
 
     assert.equal(isErr(result), true)
     if (isErr(result)) assert.deepEqual(result.error, { kind: 'place-not-found', address: 'Atlantide' })
   })
 
   it('traduit un quota depasse', async () => {
-    const { geocode } = build(httpStatus(429))
+    const { geocoder } = build(httpStatus(429))
 
-    const result = await geocode(anAddress('Ales'))
+    const result = await geocoder.locate(anAddress('Ales'))
 
     assert.equal(isErr(result), true)
     if (isErr(result)) assert.match(String((result.error as { reason?: string }).reason), /rate-limited/)
   })
 
   it('traduit une erreur serveur amont', async () => {
-    const { geocode } = build(httpStatus(500, 'boom'))
+    const { geocoder } = build(httpStatus(500, 'boom'))
 
-    const result = await geocode(anAddress('Ales'))
+    const result = await geocoder.locate(anAddress('Ales'))
 
     assert.equal(isErr(result), true)
     if (isErr(result)) {
@@ -110,27 +110,27 @@ describe('nominatimGeocoder', () => {
   })
 
   it('traduit un timeout de transport', async () => {
-    const { geocode } = build(httpTimeout())
+    const { geocoder } = build(httpTimeout())
 
-    const result = await geocode(anAddress('Ales'))
+    const result = await geocoder.locate(anAddress('Ales'))
 
     assert.equal(isErr(result), true)
     if (isErr(result)) assert.equal((result.error as { reason?: string }).reason, 'timeout')
   })
 
   it('traduit une panne reseau en service injoignable', async () => {
-    const { geocode } = build(httpNetwork())
+    const { geocoder } = build(httpNetwork())
 
-    const result = await geocode(anAddress('Ales'))
+    const result = await geocoder.locate(anAddress('Ales'))
 
     assert.equal(isErr(result), true)
     if (isErr(result)) assert.equal((result.error as { reason?: string }).reason, 'unreachable')
   })
 
   it('refuse un corps qui n est pas du JSON', async () => {
-    const { geocode } = build(httpOk('<html>maintenance</html>'))
+    const { geocoder } = build(httpOk('<html>maintenance</html>'))
 
-    const result = await geocode(anAddress('Ales'))
+    const result = await geocoder.locate(anAddress('Ales'))
 
     assert.equal(isErr(result), true)
     if (isErr(result)) assert.equal((result.error as { reason?: string }).reason, 'invalid-response')
@@ -145,8 +145,8 @@ describe('nominatimGeocoder', () => {
     ]
 
     for (const body of mutations) {
-      const { geocode } = build(httpOk(body))
-      const result = await geocode(anAddress('Ales'))
+      const { geocoder } = build(httpOk(body))
+      const result = await geocoder.locate(anAddress('Ales'))
 
       assert.equal(isErr(result), true, `devrait refuser : ${body}`)
       if (isErr(result)) assert.equal((result.error as { reason?: string }).reason, 'invalid-response', body)
@@ -155,9 +155,9 @@ describe('nominatimGeocoder', () => {
 
   it('refuse des coordonnees hors bornes terrestres', async () => {
     const body = JSON.stringify([{ lat: '99.0', lon: '4.0', display_name: 'nulle part' }])
-    const { geocode } = build(httpOk(body))
+    const { geocoder } = build(httpOk(body))
 
-    const result = await geocode(anAddress('Ales'))
+    const result = await geocoder.locate(anAddress('Ales'))
 
     assert.equal(isErr(result), true)
     if (isErr(result)) assert.equal((result.error as { reason?: string }).reason, 'invalid-response')
@@ -165,8 +165,8 @@ describe('nominatimGeocoder', () => {
 
   it('attribue toujours ses pannes a la dependance geocodage', async () => {
     for (const answer of [httpStatus(500), httpTimeout(), httpNetwork(), httpOk('nope')]) {
-      const { geocode } = build(answer)
-      const result = await geocode(anAddress('Ales'))
+      const { geocoder } = build(answer)
+      const result = await geocoder.locate(anAddress('Ales'))
 
       assert.equal(isOk(result), false)
       if (isErr(result) && result.error.kind === 'dependency-failure') {

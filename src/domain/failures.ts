@@ -10,12 +10,7 @@ export type FailureReason =
   | 'rate-limited'
   | 'circuit-open'
 
-/**
- * Panne d'une dependance externe, exprimee en vocabulaire metier.
- * Aucun code HTTP, aucun type issu de `fetch` : les adaptateurs traduisent
- * leurs erreurs techniques vers ce type. Si l'on change de client HTTP ou de
- * fournisseur, ce type ne bouge pas.
- */
+/** Panne d'une dependance externe, en vocabulaire metier : aucun code HTTP ici. */
 export type DependencyFailure = {
   readonly kind: 'dependency-failure'
   readonly dependency: DependencyName
@@ -28,10 +23,7 @@ export type PlaceNotFound = {
   readonly address: string
 }
 
-/**
- * Le lieu a bien ete resolu mais la meteo est introuvable : on remonte quand
- * meme le resultat partiel pour que l'appelant ne reparte pas les mains vides.
- */
+/** Lieu resolu mais meteo indisponible : le resultat partiel est renvoye quand meme. */
 export type ForecastUnavailable = {
   readonly kind: 'forecast-unavailable'
   readonly place: Place

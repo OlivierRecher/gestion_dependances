@@ -1,7 +1,7 @@
 import type { Address } from '../../domain/address.ts'
 import { createCoordinates } from '../../domain/coordinates.ts'
 import type { Place } from '../../domain/model.ts'
-import type { Geocoder } from '../../domain/ports.ts'
+import type { GeocodingService } from '../../domain/ports.ts'
 import { err, ok } from '../../domain/result.ts'
 import { fromHttpFailure, fromStatus, invalidResponse } from '../http/failure-mapping.ts'
 import type { HttpClient } from '../http/http-client.ts'
@@ -17,10 +17,7 @@ export type NominatimGeocoderOptions = {
 
 const DEPENDENCY = 'geocoding' as const
 
-/**
- * Traduit une entree de resultat Nominatim en `Place`. Renvoie `undefined` si
- * la forme ne correspond pas a ce que nous attendons.
- */
+/** Traduit une entree de resultat Nominatim en `Place`, ou `undefined` si la forme est inattendue. */
 const toPlace = (entry: unknown): Place | undefined => {
   if (!isRecord(entry)) return undefined
 
@@ -35,17 +32,9 @@ const toPlace = (entry: unknown): Place | undefined => {
   return { label, coordinates: coordinates.value }
 }
 
-/**
- * Adaptateur Nominatim : couche anti-corruption.
- *
- * Il est le seul endroit du projet a connaitre les noms de champs
- * `display_name`, `lat`, `lon` et la convention "tableau vide = introuvable".
- * Le vocabulaire du fournisseur s'arrete ici ; au-dela, on ne manipule plus
- * que des types du domaine. Changer de geocodeur (Ban, Google, Photon) revient
- * a ecrire un autre fichier de cette forme, sans toucher au metier.
- */
-export const createNominatimGeocoder = (options: NominatimGeocoderOptions): Geocoder =>
-  async (address: Address) => {
+/** Adaptateur Nominatim : seul endroit a connaitre `display_name`/`lat`/`lon` et ce vocabulaire fournisseur. */
+export const createNominatimGeocoder = (options: NominatimGeocoderOptions): GeocodingService => ({
+  async locate(address: Address) {
     const url = new URL('/search', options.baseUrl)
     url.searchParams.set('q', address)
     url.searchParams.set('format', 'json')
@@ -74,4 +63,5 @@ export const createNominatimGeocoder = (options: NominatimGeocoderOptions): Geoc
     if (place === undefined) return err(invalidResponse(DEPENDENCY, 'resultat inexploitable'))
 
     return ok(place)
-  }
+  },
+})

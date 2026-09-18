@@ -16,14 +16,7 @@ export type HttpFailure =
   | { readonly kind: 'http-timeout' }
   | { readonly kind: 'http-network'; readonly detail: string }
 
-/**
- * Port HTTP interne. Il ne connait ni `fetch`, ni `axios`, ni `undici`.
- *
- * Un statut 4xx/5xx n'est pas une panne a ce niveau : c'est une reponse. Seule
- * l'impossibilite d'obtenir une reponse est une panne. Interpreter le statut
- * est la responsabilite de l'adaptateur metier, qui seul connait le contrat du
- * fournisseur.
- */
+/** Port HTTP interne, agnostique de `fetch`/`axios`/etc. Un 4xx/5xx est une reponse, pas une panne. */
 export interface HttpClient {
   get(request: HttpRequest): Promise<Result<HttpResponse, HttpFailure>>
 }

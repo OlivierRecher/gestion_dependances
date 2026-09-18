@@ -34,13 +34,7 @@ const methodNotAllowed = (allowed: readonly string[]) =>
     { Allow: allowed.join(', ') },
   )
 
-/**
- * Routeur exact, sans parametres de chemin ni expressions regulieres.
- *
- * C'est tout ce dont cette API a besoin. Un framework de routage serait ici
- * une dependance qu'on ne controle pas, pour une trentaine de lignes qu'on
- * controle entierement.
- */
+/** Routeur exact, sans parametres de chemin ni regex : tout ce dont cette API a besoin. */
 export const createRouter = (routes: readonly Route[]): ApiHandler => async (request) => {
   const path = normalizePath(request.path)
   const method = normalizeMethod(request.method)

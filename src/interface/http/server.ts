@@ -42,17 +42,12 @@ const INTERNAL_ERROR: ApiResponse = {
   },
 }
 
-/**
- * Execute une action dont l'echec ne doit jamais remonter.
- *
- * Utilise uniquement sur les chemins de derniere chance, la ou lever
- * signifierait tuer le processus au lieu de degrader une seule requete.
- */
+/** Execute une action de derniere chance dont l'echec ne doit jamais tuer le processus. */
 const failSafe = (action: () => void): void => {
   try {
     action()
   } catch {
-    // Volontairement silencieux : c'est deja le chemin de recuperation.
+    // deja le chemin de recuperation
   }
 }
 
@@ -68,17 +63,8 @@ const send = (message: IncomingMessage, response: ServerResponse, api: ApiRespon
   response.end(message.method?.toUpperCase() === 'HEAD' ? undefined : payload)
 }
 
-/**
- * Adaptateur de transport : traduit `node:http` vers le contrat `ApiHandler`.
- *
- * Toute la logique HTTP -- codes, en-tetes, corps -- vit dans les endpoints,
- * qui sont des fonctions pures. Ce fichier ne fait que brancher des tuyaux,
- * c'est pourquoi il est le seul a importer `node:http`. Passer a un autre
- * serveur ne demanderait de reecrire que lui.
- */
+/** Adaptateur de transport : traduit `node:http` vers `ApiHandler`. Seul fichier a importer `node:http`. */
 export const startHttpServer = (options: HttpServerOptions): Promise<RunningServer> => {
-  // Le transport ne doit pas pouvoir etre tue par la journalisation, quel que
-  // soit le logger que l'appelant lui confie.
   const logger = neverThrows(options.logger)
 
   const server = createServer((message, response) => {
@@ -86,9 +72,7 @@ export const startHttpServer = (options: HttpServerOptions): Promise<RunningServ
       try {
         send(message, response, await options.handler(toApiRequest(message)))
       } catch (error: unknown) {
-        // Le chemin de recuperation doit etre aussi solide que le chemin
-        // nominal : journaliser, puis repondre, puis abandonner la socket --
-        // chaque etape isolee, aucune ne pouvant emporter le processus.
+        // journaliser, repondre, abandonner la socket : chaque etape isolee des autres
         failSafe(() =>
           logger.log('error', 'request.unhandled', {
             path: message.url,
@@ -106,9 +90,7 @@ export const startHttpServer = (options: HttpServerOptions): Promise<RunningServ
     })()
   })
 
-  // Une erreur de socket apres le demarrage (EMFILE, ECONNRESET...) emet un
-  // evenement 'error' : sans ecouteur, Node le transforme en exception non
-  // rattrapee et le processus meurt.
+  // sans ecouteur, une erreur de socket (EMFILE, ECONNRESET...) tue le processus
   server.on('error', (error) => {
     logger.log('error', 'server.error', { error: error.message })
   })

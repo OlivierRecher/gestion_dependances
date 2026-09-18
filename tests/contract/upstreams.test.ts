@@ -28,7 +28,7 @@ const http = createFetchHttpClient({ fetch: globalThis.fetch })
 
 describe('contrat des services externes', { skip: SKIP }, () => {
   it('Nominatim renvoie encore un lieu exploitable', async () => {
-    const geocode = createNominatimGeocoder({
+    const geocoder = createNominatimGeocoder({
       http,
       baseUrl: 'https://nominatim.openstreetmap.org',
       userAgent: 'api-meteo/1.0 (TP gestion des dependances)',
@@ -38,7 +38,7 @@ describe('contrat des services externes', { skip: SKIP }, () => {
     // Requete volontairement sans ambiguite : ce test verifie que notre
     // lecture du format tient encore, pas le classement des resultats de
     // Nominatim, qui peut legitimement evoluer.
-    const result = await geocode(anAddress('Ales, Gard, France'))
+    const result = await geocoder.locate(anAddress('Ales, Gard, France'))
 
     assert.equal(isOk(result), true, 'le contrat de geocodage a change, ou le service est indisponible')
     if (!isOk(result)) return
@@ -48,13 +48,13 @@ describe('contrat des services externes', { skip: SKIP }, () => {
   })
 
   it('Open-Meteo renvoie encore une serie de rayonnement exploitable', async () => {
-    const forecast = createOpenMeteoForecaster({
+    const forecaster = createOpenMeteoForecaster({
       http,
       baseUrl: 'https://api.open-meteo.com',
       timeoutMs: 10_000,
     })
 
-    const result = await forecast({ latitude: 44.1281, longitude: 4.0817 })
+    const result = await forecaster.forecastAt({ latitude: 44.1281, longitude: 4.0817 })
 
     assert.equal(isOk(result), true, 'le contrat de previsions a change, ou le service est indisponible')
     if (!isOk(result)) return

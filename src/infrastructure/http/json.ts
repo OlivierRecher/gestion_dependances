@@ -1,16 +1,6 @@
 import { err, ok, type Result } from '../../domain/result.ts'
 
-/**
- * Garde-fous de lecture de JSON tiers.
- *
- * Le format de reponse d'une API externe est une dependance implicite : rien
- * ne le verrouille, il peut changer sans previs. Ces fonctions transforment ce
- * risque silencieux -- `undefined` qui se propage jusqu'au client -- en une
- * erreur explicite et locale.
- *
- * Ecrites a la main : une librairie de validation serait une dependance de
- * plus pour quatre predicats.
- */
+/** Garde-fous de lecture de JSON tiers : un format qui change devient une erreur locale, pas un `undefined` qui se propage. */
 export const parseJson = (body: string): Result<unknown, 'invalid-json'> => {
   try {
     return ok(JSON.parse(body) as unknown)

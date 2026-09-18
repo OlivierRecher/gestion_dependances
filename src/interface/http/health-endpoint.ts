@@ -1,11 +1,7 @@
 import type { DependencyName } from '../../domain/failures.ts'
 import { jsonResponse, type ApiHandler } from './api.ts'
 
-/**
- * Etat de disjoncteur tel qu'il est *expose*. Volontairement redeclare plutot
- * qu'importe du module de resilience : le contrat public ne doit pas se
- * deformer parce qu'un type interne evolue.
- */
+/** Etat de disjoncteur expose publiquement, redeclare pour ne pas dependre d'un type interne. */
 export type CircuitReport = 'closed' | 'open' | 'half-open'
 
 export type DependencyStatus = {
@@ -18,16 +14,8 @@ export type DependencyStatus = {
 export type HealthProbe = () => readonly DependencyStatus[]
 
 /**
- * Endpoint `GET /health`.
- *
- * Il renvoie toujours 200, meme avec des circuits ouverts. Ce n'est pas une
- * complaisance : l'API est reellement vivante et sait encore servir des
- * donnees en cache. La confondre avec ses dependances ferait redemarrer en
- * boucle un service parfaitement sain parce qu'un tiers est tombe.
- *
- * Et surtout, la sonde n'appelle pas les services externes : un `/health` qui
- * interroge ses dependances transforme la supervision en attaque par
- * amplification.
+ * Endpoint `GET /health` : renvoie toujours 200, meme circuits ouverts (l'API
+ * sert encore du cache), et n'appelle jamais les services externes lui-meme.
  */
 export const createHealthEndpoint = (probe: HealthProbe): ApiHandler => () => {
   const dependencies = probe().map((status) => ({

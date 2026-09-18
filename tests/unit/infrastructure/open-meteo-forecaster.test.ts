@@ -22,19 +22,19 @@ const reasonOf = (error: unknown): string | undefined => (error as { reason?: st
 
 const build = (answer: Result<HttpResponse, HttpFailure>) => {
   const http = fakeHttp(answer)
-  const forecast = createOpenMeteoForecaster({
+  const forecaster = createOpenMeteoForecaster({
     http: http.client,
     baseUrl: 'https://open-meteo.exemple.test',
     timeoutMs: 3_000,
   })
-  return { http, forecast }
+  return { http, forecaster }
 }
 
 describe('openMeteoForecaster', () => {
   it('traduit la reponse du fournisseur en previsions du domaine', async () => {
-    const { forecast } = build(httpOk(OPEN_METEO_PAYLOAD))
+    const { forecaster } = build(httpOk(OPEN_METEO_PAYLOAD))
 
-    const result = await forecast(someCoordinates)
+    const result = await forecaster.forecastAt(someCoordinates)
 
     assert.deepEqual(result, ok({
       coordinates: { latitude: 44.125, longitude: 4.0 },
@@ -48,9 +48,9 @@ describe('openMeteoForecaster', () => {
   })
 
   it('construit l url de prevision attendue', async () => {
-    const { http, forecast } = build(httpOk(OPEN_METEO_PAYLOAD))
+    const { http, forecaster } = build(httpOk(OPEN_METEO_PAYLOAD))
 
-    await forecast({ latitude: 44.1281, longitude: 4.0817 })
+    await forecaster.forecastAt({ latitude: 44.1281, longitude: 4.0817 })
     const url = http.lastUrl()
 
     assert.equal(url.origin, 'https://open-meteo.exemple.test')
@@ -61,9 +61,9 @@ describe('openMeteoForecaster', () => {
   })
 
   it('applique le delai maximum configure', async () => {
-    const { http, forecast } = build(httpOk(OPEN_METEO_PAYLOAD))
+    const { http, forecaster } = build(httpOk(OPEN_METEO_PAYLOAD))
 
-    await forecast(someCoordinates)
+    await forecaster.forecastAt(someCoordinates)
 
     assert.equal(http.requests[0]?.timeoutMs, 3_000)
   })
@@ -75,9 +75,9 @@ describe('openMeteoForecaster', () => {
       timezone: 'GMT',
       hourly: { time: ['t0', 't1', 't2'], shortwave_radiation: [10, null, 30] },
     })
-    const { forecast } = build(httpOk(body))
+    const { forecaster } = build(httpOk(body))
 
-    const result = await forecast(someCoordinates)
+    const result = await forecaster.forecastAt(someCoordinates)
 
     assert.equal(isOk(result), true)
     if (isOk(result)) {
@@ -94,9 +94,9 @@ describe('openMeteoForecaster', () => {
       longitude: 4.0,
       hourly: { time: ['t0'], shortwave_radiation: [10] },
     })
-    const { forecast } = build(httpOk(body))
+    const { forecaster } = build(httpOk(body))
 
-    const result = await forecast(someCoordinates)
+    const result = await forecaster.forecastAt(someCoordinates)
 
     assert.equal(isOk(result), true)
     if (isOk(result)) assert.equal(result.value.timezone, 'GMT')
@@ -109,9 +109,9 @@ describe('openMeteoForecaster', () => {
       timezone: 'GMT',
       hourly: { time: ['t0', 't1'], shortwave_radiation: [10] },
     })
-    const { forecast } = build(httpOk(body))
+    const { forecaster } = build(httpOk(body))
 
-    const result = await forecast(someCoordinates)
+    const result = await forecaster.forecastAt(someCoordinates)
 
     assert.equal(isErr(result), true)
     if (isErr(result)) assert.equal(reasonOf(result.error), 'invalid-response')
@@ -128,8 +128,8 @@ describe('openMeteoForecaster', () => {
     ]
 
     for (const body of mutations) {
-      const { forecast } = build(httpOk(body))
-      const result = await forecast(someCoordinates)
+      const { forecaster } = build(httpOk(body))
+      const result = await forecaster.forecastAt(someCoordinates)
 
       assert.equal(isErr(result), true, `devrait refuser : ${body}`)
       if (isErr(result)) assert.equal(reasonOf(result.error), 'invalid-response', body)
@@ -143,9 +143,9 @@ describe('openMeteoForecaster', () => {
       timezone: 'GMT',
       hourly: { time: [], shortwave_radiation: [] },
     })
-    const { forecast } = build(httpOk(body))
+    const { forecaster } = build(httpOk(body))
 
-    const result = await forecast(someCoordinates)
+    const result = await forecaster.forecastAt(someCoordinates)
 
     assert.equal(isOk(result), true)
     if (isOk(result)) assert.deepEqual(result.value.samples, [])
@@ -160,8 +160,8 @@ describe('openMeteoForecaster', () => {
     ]
 
     for (const { answer, reason } of cases) {
-      const { forecast } = build(answer)
-      const result = await forecast(someCoordinates)
+      const { forecaster } = build(answer)
+      const result = await forecaster.forecastAt(someCoordinates)
 
       assert.equal(isErr(result), true)
       if (isErr(result)) {
