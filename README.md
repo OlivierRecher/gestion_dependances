@@ -1,11 +1,24 @@
-# API Météo — TP1 « Gestion des dépendances, risques et maintenabilité »
+# API Météo — TP1/TP2 « Gestion des dépendances, risques et maintenabilité »
 
 API HTTP qui reçoit une adresse postale et renvoie les prévisions de
 rayonnement solaire du lieu, en enchaînant deux services externes :
 
 ```
-adresse ──▶ Nominatim (géocodage) ──▶ lat/lon ──▶ Open-Meteo (prévisions) ──▶ réponse
+adresse ──▶ géocodage ──▶ lat/lon ──▶ prévisions ──▶ réponse
 ```
+
+Chaque étape a deux fournisseurs interchangeables **sans recompilation**,
+choisis par variable d'environnement (voir `.env.example`) :
+
+| Port | Fournisseurs | Variable |
+|---|---|---|
+| `GeocodingPort` | Nominatim (par défaut) · BAN (Base Adresse Nationale) | `GEOCODING_PROVIDER` |
+| `ForecastPort` | Open-Meteo (par défaut) · MET Norway Locationforecast | `FORECAST_PROVIDER` |
+
+⚠️ Locationforecast (MET Norway) ne publie aucun rayonnement solaire — le
+seul champ que `Forecast` exige. L'adaptateur `met-norway-forecaster.ts`
+échoue donc **toujours**, explicitement (`invalid-response`), plutôt que
+d'inventer une valeur : une inadéquation de contrat assumée, pas une panne.
 
 Le sujet impose couplage faible, inversion de contrôle et injection de
 dépendances, avec un code testable et testé. Ce dépôt pousse la contrainte un
@@ -25,7 +38,7 @@ npm start       # http://127.0.0.1:3000
 ```
 
 ```bash
-npm test             # 160 tests unitaires + bout en bout, sans réseau (~2 s)
+npm test             # ~190 tests unitaires + bout en bout, sans réseau (~2 s)
 npm run typecheck    # tsc --noEmit
 npm run verify       # typecheck + tests
 npm run test:contract  # ⚠ sort sur le réseau : vérifie les vraies API
@@ -110,6 +123,9 @@ renvoyer le client les mains vides :
   ]
 }
 ```
+
+`name` reflète le fournisseur réellement actif (`nominatim`/`ban`,
+`open-meteo`/`met-norway`), lu depuis la configuration au démarrage.
 
 Cette sonde renvoie **toujours `200`**, même avec un circuit ouvert, et
 **n'appelle aucun service externe**. Deux décisions volontaires :
