@@ -25,20 +25,15 @@ const toLocationDto = (place: Place) => ({
   longitude: place.coordinates.longitude,
 })
 
+/** Format de sortie unique : identique quel que soit le fournisseur actif, ou en mode demo. */
 const toReportDto = (report: WeatherReport) => ({
   address: report.address,
-  location: toLocationDto(report.place),
-  forecast: {
-    timezone: report.forecast.timezone,
-    hourly: report.forecast.samples.map((sample) => ({
-      time: sample.time,
-      shortwaveRadiation: sample.shortwaveRadiation,
-    })),
-  },
-  meta: {
-    degraded: report.degraded,
-    sources: report.sources,
-  },
+  latitude: report.place.coordinates.latitude,
+  longitude: report.place.coordinates.longitude,
+  hourly: report.forecast.samples.map((sample) => ({
+    time: sample.time,
+    temperatureCelsius: sample.temperatureCelsius,
+  })),
 })
 
 /** Une reponse degradee reste utile mais ne doit pas finir dans un cache partage. */
@@ -95,7 +90,7 @@ const geocodingUnavailable = (failure: DependencyFailure): ApiResponse =>
     },
   })
 
-/** Endpoint `GET /weather?address=...` : ne depend que du cas d'usage injecte. */
+/** Endpoint `GET /weather?address=...` (alias `/forecast`) : ne depend que du cas d'usage injecte. */
 export const createWeatherEndpoint = (getWeather: GetWeatherForAddress): ApiHandler =>
   async (request) => {
     const address = createAddress(request.query['address'] ?? '')

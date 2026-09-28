@@ -1,7 +1,7 @@
-# API Météo — TP1/TP2 « Gestion des dépendances, risques et maintenabilité »
+# API Météo — TP1/TP2/TP3 « Gestion des dépendances, risques et maintenabilité »
 
 API HTTP qui reçoit une adresse postale et renvoie les prévisions de
-rayonnement solaire du lieu, en enchaînant deux services externes :
+température du lieu, en enchaînant deux services externes :
 
 ```
 adresse ──▶ géocodage ──▶ lat/lon ──▶ prévisions ──▶ réponse
@@ -15,10 +15,8 @@ choisis par variable d'environnement (voir `.env.example`) :
 | `GeocodingPort` | Nominatim (par défaut) · BAN (Base Adresse Nationale) | `GEOCODING_PROVIDER` |
 | `ForecastPort` | Open-Meteo (par défaut) · MET Norway Locationforecast | `FORECAST_PROVIDER` |
 
-⚠️ Locationforecast (MET Norway) ne publie aucun rayonnement solaire — le
-seul champ que `Forecast` exige. L'adaptateur `met-norway-forecaster.ts`
-échoue donc **toujours**, explicitement (`invalid-response`), plutôt que
-d'inventer une valeur : une inadéquation de contrat assumée, pas une panne.
+Les deux fournisseurs de prévisions publient la température horaire
+(`temperature_2m` chez Open-Meteo, `air_temperature` chez MET Norway).
 
 Le sujet impose couplage faible, inversion de contrôle et injection de
 dépendances, avec un code testable et testé. Ce dépôt pousse la contrainte un
@@ -50,43 +48,38 @@ Configuration : voir `.env.example`. L'API démarre sans aucune variable.
 
 ## Endpoints
 
-### `GET /weather?address=<adresse>`
+### `GET /forecast?address=<adresse>` (alias `/weather`)
 
 ```bash
-curl 'http://127.0.0.1:3000/weather?address=Alès'
+curl 'http://127.0.0.1:3000/forecast?address=Alès'
+curl 'http://127.0.0.1:3000/forecast?address=Alès&demo=true'   # données simulées
 ```
+
+Format **unique**, quel que soit le fournisseur actif (Nominatim, BAN,
+Open-Meteo, MET Norway) ou le mode démo — seul le contenu change :
 
 ```json
 {
   "address": "Alès",
-  "location": {
-    "label": "Alès, Gard, Occitanie, France métropolitaine, 30100, France",
-    "latitude": 44.1253665,
-    "longitude": 4.0852818
-  },
-  "forecast": {
-    "timezone": "GMT",
-    "hourly": [
-      { "time": "2026-09-18T00:00", "shortwaveRadiation": 0 },
-      { "time": "2026-09-18T09:00", "shortwaveRadiation": 431 }
-    ]
-  },
-  "meta": {
-    "degraded": false,
-    "sources": { "geocoding": "live", "forecast": "live" }
-  }
+  "latitude": 44.1279,
+  "longitude": 4.0817,
+  "hourly": [
+    { "time": "2025-06-10T14:00:00Z", "temperatureCelsius": 24.3 }
+  ]
 }
 ```
 
-`meta.sources` indique la provenance de chaque donnée :
+Chaque adaptateur traduit son format vers le domaine (`TemperatureSample`,
+instants en UTC) ; un seul DTO (`weather-endpoint.ts`) produit la réponse.
 
-| Valeur | Signification |
-|---|---|
-| `live` | réponse directe du service |
-| `cached` | cache encore valide, le service n'a pas été appelé |
-| `stale` | **cache périmé servi parce que le service est tombé** |
+- **Mode démo** (`demo=true`) : le même cas d'usage est câblé sur des
+  adaptateurs simulés (`infrastructure/demo/`) — aucun appel externe.
+- **Cache du géocodage** : `withResilience` + `TimedCache` injecté par la
+  racine de composition (aucun état statique) ; deux appels sur la même adresse
+  ne font qu'un appel réseau. Changer de cache = fournir une autre
+  implémentation de `TimedCache`.
 
-Une réponse contenant du `stale` porte `meta.degraded: true`, l'en-tête
+Une réponse servie depuis un cache périmé porte l'en-tête
 `Warning: 110 - "Response is stale"` et `Cache-Control: no-store`.
 
 | Statut | Cas |

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { createMetNorwayForecaster } from '../../../src/infrastructure/forecast/met-norway-forecaster.ts'
-import { isErr } from '../../../src/domain/result.ts'
+import { isErr, isOk, ok } from '../../../src/domain/result.ts'
 import { fakeHttp, httpNetwork, httpOk, httpStatus, httpTimeout } from '../../support/fake-http.ts'
 import { someCoordinates } from '../../support/fixtures.ts'
 import type { Result } from '../../../src/domain/result.ts'
@@ -20,7 +20,6 @@ const LOCATIONFORECAST_PAYLOAD = JSON.stringify({
 })
 
 const reasonOf = (error: unknown): string | undefined => (error as { reason?: string }).reason
-const detailOf = (error: unknown): string | undefined => (error as { detail?: string }).detail
 
 const build = (answer: Result<HttpResponse, HttpFailure>) => {
   const http = fakeHttp(answer)
@@ -34,17 +33,34 @@ const build = (answer: Result<HttpResponse, HttpFailure>) => {
 }
 
 describe('metNorwayForecaster', () => {
-  it('ne peut jamais satisfaire le contrat Forecast : ce fournisseur ne publie pas de rayonnement solaire', async () => {
+  it('traduit la reponse du fournisseur en previsions du domaine', async () => {
     const { forecaster } = build(httpOk(LOCATIONFORECAST_PAYLOAD))
 
     const result = await forecaster.forecastAt(someCoordinates)
 
-    assert.equal(isErr(result), true)
-    if (isErr(result)) {
-      assert.equal(result.error.kind, 'dependency-failure')
-      assert.equal(reasonOf(result.error), 'invalid-response')
-      assert.match(detailOf(result.error) ?? '', /shortwave_radiation/)
-    }
+    assert.deepEqual(result, ok({
+      coordinates: { latitude: 44.12, longitude: 4.08 },
+      timezone: 'GMT',
+      samples: [{ time: '2026-09-18T13:00:00Z', temperatureCelsius: 26.6 }],
+    }))
+  })
+
+  it('ecarte les points de mesure sans temperature', async () => {
+    const body = JSON.stringify({
+      geometry: { coordinates: [4.08, 44.12] },
+      properties: {
+        timeseries: [
+          { time: '2026-09-18T13:00:00Z', data: { instant: { details: { air_temperature: 26.6 } } } },
+          { time: '2026-09-18T14:00:00Z', data: { instant: { details: {} } } },
+        ],
+      },
+    })
+    const { forecaster } = build(httpOk(body))
+
+    const result = await forecaster.forecastAt(someCoordinates)
+
+    assert.equal(isOk(result), true)
+    if (isOk(result)) assert.deepEqual(result.value.samples, [{ time: '2026-09-18T13:00:00Z', temperatureCelsius: 26.6 }])
   })
 
   it('construit l url de prevision attendue', async () => {

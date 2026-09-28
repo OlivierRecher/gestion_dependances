@@ -17,15 +17,15 @@ export type Place = {
   readonly coordinates: Coordinates
 }
 
-/** Un point de mesure horaire. */
-export type RadiationSample = {
+/** Un point de mesure horaire ; `time` est un instant ISO 8601 en UTC, quel que soit le fournisseur. */
+export type TemperatureSample = {
   readonly time: string
-  readonly shortwaveRadiation: number
+  readonly temperatureCelsius: number
 }
 
 /** Previsions pour un point donne. */
 export type Forecast = {
   readonly coordinates: Coordinates
   readonly timezone: string
-  readonly samples: readonly RadiationSample[]
+  readonly samples: readonly TemperatureSample[]
 }

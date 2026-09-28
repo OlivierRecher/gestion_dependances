@@ -14,7 +14,7 @@ const OPEN_METEO_PAYLOAD = JSON.stringify({
   timezone: 'GMT',
   hourly: {
     time: ['2026-09-18T00:00', '2026-09-18T01:00', '2026-09-18T12:00'],
-    shortwave_radiation: [0, 0, 512.4],
+    temperature_2m: [0, 0, 512.4],
   },
 })
 
@@ -40,9 +40,9 @@ describe('openMeteoForecaster', () => {
       coordinates: { latitude: 44.125, longitude: 4.0 },
       timezone: 'GMT',
       samples: [
-        { time: '2026-09-18T00:00', shortwaveRadiation: 0 },
-        { time: '2026-09-18T01:00', shortwaveRadiation: 0 },
-        { time: '2026-09-18T12:00', shortwaveRadiation: 512.4 },
+        { time: '2026-09-18T00:00:00Z', temperatureCelsius: 0 },
+        { time: '2026-09-18T01:00:00Z', temperatureCelsius: 0 },
+        { time: '2026-09-18T12:00:00Z', temperatureCelsius: 512.4 },
       ],
     }))
   })
@@ -57,7 +57,8 @@ describe('openMeteoForecaster', () => {
     assert.equal(url.pathname, '/v1/forecast')
     assert.equal(url.searchParams.get('latitude'), '44.1281')
     assert.equal(url.searchParams.get('longitude'), '4.0817')
-    assert.equal(url.searchParams.get('hourly'), 'shortwave_radiation')
+    assert.equal(url.searchParams.get('hourly'), 'temperature_2m')
+    assert.equal(url.searchParams.get('timezone'), 'GMT')
   })
 
   it('applique le delai maximum configure', async () => {
@@ -73,7 +74,7 @@ describe('openMeteoForecaster', () => {
       latitude: 44.1,
       longitude: 4.0,
       timezone: 'GMT',
-      hourly: { time: ['t0', 't1', 't2'], shortwave_radiation: [10, null, 30] },
+      hourly: { time: ['t0', 't1', 't2'], temperature_2m: [10, null, 30] },
     })
     const { forecaster } = build(httpOk(body))
 
@@ -82,8 +83,8 @@ describe('openMeteoForecaster', () => {
     assert.equal(isOk(result), true)
     if (isOk(result)) {
       assert.deepEqual(result.value.samples, [
-        { time: 't0', shortwaveRadiation: 10 },
-        { time: 't2', shortwaveRadiation: 30 },
+        { time: 't0:00Z', temperatureCelsius: 10 },
+        { time: 't2:00Z', temperatureCelsius: 30 },
       ])
     }
   })
@@ -92,7 +93,7 @@ describe('openMeteoForecaster', () => {
     const body = JSON.stringify({
       latitude: 44.1,
       longitude: 4.0,
-      hourly: { time: ['t0'], shortwave_radiation: [10] },
+      hourly: { time: ['t0'], temperature_2m: [10] },
     })
     const { forecaster } = build(httpOk(body))
 
@@ -107,7 +108,7 @@ describe('openMeteoForecaster', () => {
       latitude: 44.1,
       longitude: 4.0,
       timezone: 'GMT',
-      hourly: { time: ['t0', 't1'], shortwave_radiation: [10] },
+      hourly: { time: ['t0', 't1'], temperature_2m: [10] },
     })
     const { forecaster } = build(httpOk(body))
 
@@ -123,8 +124,8 @@ describe('openMeteoForecaster', () => {
       '[]',
       '{"latitude":44.1,"longitude":4.0}',
       '{"latitude":44.1,"longitude":4.0,"hourly":{"time":["t0"]}}',
-      '{"latitude":44.1,"longitude":4.0,"hourly":{"shortwave_radiation":[1]}}',
-      '{"latitude":"nord","longitude":4.0,"hourly":{"time":["t0"],"shortwave_radiation":[1]}}',
+      '{"latitude":44.1,"longitude":4.0,"hourly":{"temperature_2m":[1]}}',
+      '{"latitude":"nord","longitude":4.0,"hourly":{"time":["t0"],"temperature_2m":[1]}}',
     ]
 
     for (const body of mutations) {
@@ -141,7 +142,7 @@ describe('openMeteoForecaster', () => {
       latitude: 44.1,
       longitude: 4.0,
       timezone: 'GMT',
-      hourly: { time: [], shortwave_radiation: [] },
+      hourly: { time: [], temperature_2m: [] },
     })
     const { forecaster } = build(httpOk(body))
 
