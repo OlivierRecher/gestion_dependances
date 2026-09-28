@@ -15,7 +15,7 @@ Appliqué à ce projet.
 | 1 | **Nominatim** (OpenStreetMap) | Service HTTP tiers | Externe | Directe | Explicite | **Faible** | `GeocodingPort` + `nominatim-geocoder.ts` |
 | 2 | **Open-Meteo** | Service HTTP tiers | Externe | Directe | Explicite | **Faible** | `ForecastPort` + `open-meteo-forecaster.ts` |
 | 3 | **Format de réponse Nominatim** (`display_name`, `lat`, `lon`, `[] = introuvable`) | Contrat de données | Externe | Directe | **Implicite** | **Faible** | `toPlace()`, un seul fichier |
-| 4 | **Format de réponse Open-Meteo** (séries parallèles `hourly.time` / `hourly.shortwave_radiation`) | Contrat de données | Externe | Directe | **Implicite** | **Faible** | `toForecast()`, un seul fichier |
+| 4 | **Format de réponse Open-Meteo** (séries parallèles `hourly.time` / `hourly.temperature_2m`) | Contrat de données | Externe | Directe | **Implicite** | **Faible** | `toForecast()`, un seul fichier |
 | 5 | **Politique d'usage Nominatim** (`User-Agent` obligatoire, quota) | Contrainte contractuelle | Externe | Directe | **Implicite** | Moyen | Configuration + traduction du `429` |
 | 6 | **Runtime Node.js ≥ 24** | Plateforme | Externe | Directe | **Implicite** | **Fort** | `engines` dans `package.json` |
 | 7 | **`node:http`** | Module natif | Externe | Directe | Explicite | **Faible** | `interface/http/server.ts`, seul importateur |

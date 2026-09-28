@@ -41,22 +41,12 @@ describe('weatherEndpoint', () => {
     assert.equal(response.headers['Content-Type'], 'application/json; charset=utf-8')
     assert.deepEqual(response.body, {
       address: 'Ales',
-      location: {
-        label: 'Ales, Gard, Occitanie, France',
-        latitude: 44.1281,
-        longitude: 4.0817,
-      },
-      forecast: {
-        timezone: 'GMT',
-        hourly: [
-          { time: '2026-09-18T00:00', shortwaveRadiation: 0 },
-          { time: '2026-09-18T12:00', shortwaveRadiation: 512.4 },
-        ],
-      },
-      meta: {
-        degraded: false,
-        sources: { geocoding: 'live', forecast: 'live' },
-      },
+      latitude: 44.1281,
+      longitude: 4.0817,
+      hourly: [
+        { time: '2026-09-18T00:00:00Z', temperatureCelsius: 12.1 },
+        { time: '2026-09-18T12:00:00Z', temperatureCelsius: 24.3 },
+      ],
     })
   })
 

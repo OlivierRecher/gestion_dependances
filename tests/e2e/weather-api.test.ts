@@ -20,22 +20,12 @@ describe('API meteo (bout en bout)', () => {
       assert.equal(response.headers.get('content-type'), 'application/json; charset=utf-8')
       assert.deepEqual(response.body, {
         address: 'Ales',
-        location: {
-          label: 'Ales, Gard, Occitanie, France',
-          latitude: 44.1281,
-          longitude: 4.0817,
-        },
-        forecast: {
-          timezone: 'GMT',
-          hourly: [
-            { time: '2026-09-18T00:00', shortwaveRadiation: 0 },
-            { time: '2026-09-18T12:00', shortwaveRadiation: 512.4 },
-          ],
-        },
-        meta: {
-          degraded: false,
-          sources: { geocoding: 'live', forecast: 'live' },
-        },
+        latitude: 44.1281,
+        longitude: 4.0817,
+        hourly: [
+          { time: '2026-09-18T00:00:00Z', temperatureCelsius: 12.1 },
+          { time: '2026-09-18T12:00:00Z', temperatureCelsius: 24.3 },
+        ],
       })
     })
 
@@ -103,10 +93,6 @@ describe('API meteo (bout en bout)', () => {
       assert.equal(response.status, 200)
       assert.equal(server.upstreams.geocoding.calls, 1)
       assert.equal(server.upstreams.forecast.calls, 1)
-      assert.deepEqual((response.body as { meta: { sources: unknown } }).meta.sources, {
-        geocoding: 'cached',
-        forecast: 'cached',
-      })
     })
 
     it('rappelle les services une fois le TTL expire', async () => {
@@ -136,10 +122,6 @@ describe('API meteo (bout en bout)', () => {
       const response = await server.get('/weather?address=Ales')
 
       assert.equal(response.status, 200)
-      assert.deepEqual((response.body as { meta: { sources: unknown; degraded: boolean } }).meta, {
-        degraded: true,
-        sources: { geocoding: 'live', forecast: 'stale' },
-      })
       assert.match(response.headers.get('warning') ?? '', /^110 /)
       assert.equal(response.headers.get('cache-control'), 'no-store')
     })
@@ -198,7 +180,7 @@ describe('API meteo (bout en bout)', () => {
       const response = await server.get('/weather?address=Nimes')
 
       assert.equal(response.status, 200)
-      assert.deepEqual((response.body as { meta: { sources: { forecast: string } } }).meta.sources.forecast, 'live')
+      assert.equal(response.headers.get('warning'), null)
       assert.equal(((await server.get('/health')).body as { status: string }).status, 'ok')
     })
   })
@@ -233,10 +215,7 @@ describe('API meteo (bout en bout)', () => {
       const response = await server.get('/weather?address=Nimes')
 
       assert.equal(response.status, 200)
-      assert.equal(
-        (response.body as { meta: { sources: { geocoding: string } } }).meta.sources.geocoding,
-        'stale',
-      )
+      assert.match(response.headers.get('warning') ?? '', /^110 /)
     })
 
     it('garde la sonde de sante disponible', async () => {

@@ -27,7 +27,7 @@ export const OPEN_METEO_BODY = JSON.stringify({
   timezone: 'GMT',
   hourly: {
     time: ['2026-09-18T00:00', '2026-09-18T12:00'],
-    shortwave_radiation: [0, 512.4],
+    temperature_2m: [12.1, 24.3],
   },
 })
 

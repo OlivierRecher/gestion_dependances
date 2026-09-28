@@ -15,8 +15,8 @@ export const aForecast = (overrides: Partial<Forecast> = {}): Forecast => ({
   coordinates: someCoordinates,
   timezone: 'GMT',
   samples: [
-    { time: '2026-09-18T00:00', shortwaveRadiation: 0 },
-    { time: '2026-09-18T12:00', shortwaveRadiation: 512.4 },
+    { time: '2026-09-18T00:00:00Z', temperatureCelsius: 12.1 },
+    { time: '2026-09-18T12:00:00Z', temperatureCelsius: 24.3 },
   ],
   ...overrides,
 })

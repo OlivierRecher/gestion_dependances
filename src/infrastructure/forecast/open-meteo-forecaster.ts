@@ -1,5 +1,5 @@
 import { createCoordinates } from '../../domain/coordinates.ts'
-import type { Coordinates, Forecast, RadiationSample } from '../../domain/model.ts'
+import type { Coordinates, Forecast, TemperatureSample } from '../../domain/model.ts'
 import type { ForecastService } from '../../domain/ports.ts'
 import { err, ok } from '../../domain/result.ts'
 import { fromHttpFailure, fromStatus, invalidResponse } from '../http/failure-mapping.ts'
@@ -13,17 +13,20 @@ export type OpenMeteoForecasterOptions = {
 }
 
 const DEPENDENCY = 'forecast' as const
-const VARIABLE = 'shortwave_radiation'
+const VARIABLE = 'temperature_2m'
 const DEFAULT_TIMEZONE = 'GMT'
 
-/** Recompose les series paralleles time[]/shortwave_radiation[] ; les trous (`null`) sont ecartes. */
-const toSamples = (times: readonly string[], values: readonly (number | null)[]): RadiationSample[] => {
-  const samples: RadiationSample[] = []
+/** Open-Meteo renvoie `2026-09-18T12:00` (heure GMT, sans zone) : on le ramene au format UTC commun. */
+const toUtcInstant = (time: string): string => `${time}:00Z`
+
+/** Recompose les series paralleles time[]/temperature_2m[] ; les trous (`null`) sont ecartes. */
+const toSamples = (times: readonly string[], values: readonly (number | null)[]): TemperatureSample[] => {
+  const samples: TemperatureSample[] = []
 
   for (const [index, time] of times.entries()) {
     const value = values[index]
     if (value === null || value === undefined) continue
-    samples.push({ time, shortwaveRadiation: value })
+    samples.push({ time: toUtcInstant(time), temperatureCelsius: value })
   }
 
   return samples
@@ -61,6 +64,7 @@ export const createOpenMeteoForecaster = (options: OpenMeteoForecasterOptions): 
     url.searchParams.set('latitude', String(coordinates.latitude))
     url.searchParams.set('longitude', String(coordinates.longitude))
     url.searchParams.set('hourly', VARIABLE)
+    url.searchParams.set('timezone', DEFAULT_TIMEZONE)
 
     const response = await options.http.get({ url: url.toString(), timeoutMs: options.timeoutMs })
 

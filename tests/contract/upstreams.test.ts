@@ -6,7 +6,7 @@ import { createOpenMeteoForecaster } from '../../src/infrastructure/forecast/ope
 import { createBanGeocoder } from '../../src/infrastructure/geocoding/ban-geocoder.ts'
 import { createNominatimGeocoder } from '../../src/infrastructure/geocoding/nominatim-geocoder.ts'
 import { createFetchHttpClient } from '../../src/infrastructure/http/fetch-http-client.ts'
-import { isErr, isOk } from '../../src/domain/result.ts'
+import { isOk } from '../../src/domain/result.ts'
 import { anAddress } from '../support/fixtures.ts'
 
 /**
@@ -49,7 +49,7 @@ describe('contrat des services externes', { skip: SKIP }, () => {
     assert.ok(Math.abs(result.value.coordinates.longitude - 4.08) < 1, `longitude inattendue : ${result.value.coordinates.longitude}`)
   })
 
-  it('Open-Meteo renvoie encore une serie de rayonnement exploitable', async () => {
+  it('Open-Meteo renvoie encore une serie de temperatures exploitable', async () => {
     const forecaster = createOpenMeteoForecaster({
       http,
       baseUrl: 'https://api.open-meteo.com',
@@ -61,7 +61,7 @@ describe('contrat des services externes', { skip: SKIP }, () => {
     assert.equal(isOk(result), true, 'le contrat de previsions a change, ou le service est indisponible')
     if (!isOk(result)) return
     assert.ok(result.value.samples.length > 0, 'serie horaire vide')
-    assert.ok(result.value.samples.every((sample) => Number.isFinite(sample.shortwaveRadiation)))
+    assert.ok(result.value.samples.every((sample) => Number.isFinite(sample.temperatureCelsius)))
     assert.ok(result.value.timezone.length > 0)
   })
 
@@ -81,7 +81,7 @@ describe('contrat des services externes', { skip: SKIP }, () => {
     assert.ok(Math.abs(result.value.coordinates.longitude - 4.08) < 1, `longitude inattendue : ${result.value.coordinates.longitude}`)
   })
 
-  it('MET Norway confirme toujours l absence de rayonnement solaire dans Locationforecast', async () => {
+  it('MET Norway renvoie encore une serie de temperatures exploitable', async () => {
     const forecaster = createMetNorwayForecaster({
       http,
       baseUrl: 'https://api.met.no',
@@ -91,11 +91,10 @@ describe('contrat des services externes', { skip: SKIP }, () => {
 
     const result = await forecaster.forecastAt({ latitude: 44.1281, longitude: 4.0817 })
 
-    // Documente une inadequation de contrat volontaire, pas une panne : voir
-    // met-norway-forecaster.ts. Si ce test se met a echouer parce que le
-    // service renvoie desormais du rayonnement solaire, tant mieux — il
-    // faudra alors reecrire l'adaptateur pour l'exploiter.
-    assert.equal(isErr(result), true, 'MET Norway publie desormais un rayonnement solaire : adapter le code')
-    if (isErr(result)) assert.equal((result.error as { reason?: string }).reason, 'invalid-response')
+    assert.equal(isOk(result), true, 'le contrat de previsions a change, ou le service est indisponible')
+    if (!isOk(result)) return
+    assert.ok(result.value.samples.length > 0, 'serie horaire vide')
+    assert.ok(result.value.samples.every((sample) => Number.isFinite(sample.temperatureCelsius)))
+    assert.ok(result.value.samples.every((sample) => sample.time.endsWith('Z')))
   })
 })
